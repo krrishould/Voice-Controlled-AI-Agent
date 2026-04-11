@@ -3,7 +3,7 @@ import os
 from modules.stt import transcribe_audio
 from modules.intent import detect_intent
 from modules.tools import execute_tool
-from audiorecorder import audiorecorder
+from streamlit_mic_recorder import mic_recorder
 
 st.set_page_config(page_title="Voice AI Agent", layout="centered")
 st.title("Voice-Controlled AI Agent")
@@ -25,12 +25,13 @@ with col1:
 
 with col2:
     st.subheader("Record from Mic")
-    audio = audiorecorder("Click to record", "Recording...")
-    if len(audio) > 0:
-        st.audio(audio.export().read())
+    audio = mic_recorder(start_prompt="Start recording", stop_prompt="Stop recording", key="mic")
+    if audio:
+        st.audio(audio["bytes"], format="audio/wav")
         os.makedirs("output", exist_ok=True)
         file_path = "output/recorded_audio.wav"
-        audio.export(file_path, format="wav")
+        with open(file_path, "wb") as f:
+            f.write(audio["bytes"])
 
 st.divider()
 
