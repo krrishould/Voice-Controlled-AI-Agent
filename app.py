@@ -17,7 +17,11 @@ if uploaded_file is not None:
 
     st.success("File saved!")
 
-    # 🔥 NEW PART
+if uploaded_file.size == 0:
+    st.error("Uploaded file is empty!")
+    st.stop()
+
+    #transcription 
     if st.button("Transcribe Audio"):
         text = transcribe_audio(file_path)
 
