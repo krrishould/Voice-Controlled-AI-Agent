@@ -1,10 +1,18 @@
-import os
-from groq import Groq
-from dotenv import load_dotenv
+from faster_whisper import WhisperModel
 
-load_dotenv()
+# Model is downloaded once from HuggingFace and cached locally after that.
+# "base" is the sweet spot for CPU — fast enough, accurate enough.
+# Change to "small" or "medium" if you want better accuracy (slower).
+_MODEL = None
 
-# Phrases Whisper commonly hallucinates on silence or background noise
+def _get_model():
+    global _MODEL
+    if _MODEL is None:
+        _MODEL = WhisperModel("base", device="cpu", compute_type="int8")
+    return _MODEL
+
+
+# Phrases faster-whisper/Whisper commonly hallucinates on silence or noise
 _KNOWN_HALLUCINATIONS = {
     "thank you", "thanks for watching", "thank you for watching",
     "продолжение следует", "to be continued", "subtitles by",
@@ -15,22 +23,24 @@ _KNOWN_HALLUCINATIONS = {
 
 
 def transcribe_audio(file_path: str) -> str:
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    with open(file_path, "rb") as f:
-        result = client.audio.transcriptions.create(
-            model="whisper-large-v3",
-            file=f,
-            response_format="text",
-            language="en",          # locks to English, cuts most non-English hallucinations
-        )
+    model = _get_model()
 
-    transcript = result.strip() if result else ""
+    segments, info = model.transcribe(
+        file_path,
+        language="en",          # lock to English — cuts non-English hallucinations
+        vad_filter=True,        # Voice Activity Detection: skips silent sections automatically
+        vad_parameters=dict(
+            min_silence_duration_ms=500,   # treat 500ms+ silence as a gap
+        ),
+    )
 
-    # Empty
+    transcript = " ".join(seg.text.strip() for seg in segments).strip()
+
+    # Empty after VAD filtered out silence
     if not transcript:
         return "__UNCLEAR__"
 
-    # Single word or just punctuation — almost certainly noise
+    # Single word / punctuation only — almost certainly noise
     if len(transcript.split()) <= 1:
         return "__UNCLEAR__"
 

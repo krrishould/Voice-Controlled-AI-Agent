@@ -1,9 +1,8 @@
-import os
 import json
-from groq import Groq
-from dotenv import load_dotenv
+import ollama
 
-load_dotenv()
+# Change this to whatever model you pulled with "ollama pull <model>"
+MODEL = "llama3.2"
 
 SYSTEM_PROMPT = """You are an intent classifier for a voice-controlled AI agent.
 Analyze the user's transcribed speech and return a JSON object with exactly these keys:
@@ -21,14 +20,13 @@ Return ONLY valid JSON. No explanation, no markdown."""
 
 
 def detect_intent(text: str) -> dict:
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+    response = ollama.chat(
+        model=MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": text},
+            {"role": "user",   "content": text},
         ],
-        response_format={"type": "json_object"},
-        temperature=0,
+        format="json",      # forces Ollama to return valid JSON
+        options={"temperature": 0},
     )
-    return json.loads(response.choices[0].message.content)
+    return json.loads(response.message.content)
