@@ -6,7 +6,7 @@ from modules.tools import execute_tool
 from streamlit_mic_recorder import mic_recorder
 
 st.set_page_config(
-    page_title="Voice AI Agent",
+    page_title="Voice AI Agent", 
     page_icon="🎙️",
     layout="centered"
 )
@@ -17,12 +17,6 @@ for key in ["file_path", "transcribed_text", "intent_data", "execution_result"]:
 
 if "history" not in st.session_state:
     st.session_state.history = []
-
-if "context_text" not in st.session_state:
-    st.session_state.context_text = ""
-
-if "chat_messages" not in st.session_state:
-    st.session_state.chat_messages = []
 
 
 # ── Header ──────────────────────────────────────────────────────────────────────
@@ -39,7 +33,7 @@ with col1:
         uploaded_file = st.file_uploader(
             "Upload audio file",            
             type=["wav", "mp3"],
-            label_visibility="collapsed",   # ← hides label text visually, no layout glitch
+            #label_visibility="collapsed", 
             key="audio_uploader"
         )
         if uploaded_file:
@@ -68,36 +62,6 @@ with col2:
 
 st.divider()
 
-# ── Context Text Input ───────────────────────────────────────────────────────────
-with st.container(border=True):
-    st.markdown("#### Text / Content Input")
-    st.caption("Paste or type text here — the agent will use this as the content to act on (e.g. summarize, answer questions about it).")
-
-    text_input_col, file_input_col = st.columns([2, 1])
-
-    with text_input_col:
-        typed_text = st.text_area(
-            "Type or paste content",
-            value=st.session_state.context_text,
-            height=120,
-            placeholder="Paste an article, code snippet, or any text you want the agent to work with...",
-            label_visibility="collapsed",
-        )
-        st.session_state.context_text = typed_text
-
-    with file_input_col:
-        text_file = st.file_uploader(
-            "Or upload a .txt file",
-            type=["txt"],
-            key="text_file_uploader",
-        )
-        if text_file:
-            file_content = text_file.read().decode("utf-8")
-            st.session_state.context_text = file_content
-            st.success(f"Loaded: {text_file.name}")
-
-st.divider()
-
 
 # ── Pipeline ────────────────────────────────────────────────────────────────────
 INTENT_ICONS = {
@@ -123,8 +87,6 @@ else:
         if st.button("↺  Reset", use_container_width=True):
             for key in ["file_path", "transcribed_text", "intent_data", "execution_result"]:
                 st.session_state[key] = None
-            st.session_state.history = []
-            st.session_state.chat_messages = []
             st.rerun()
 
     if run:
@@ -145,30 +107,16 @@ else:
 
         # ── 03 Execute ─────────────────────────────────────────────────────────
         with st.spinner("Executing action..."):
-            result = execute_tool(
-                intent_data,
-                transcript,
-                st.session_state.context_text,
-                st.session_state.chat_messages,
-            )
+            result = execute_tool(intent_data, transcript)
             st.session_state.execution_result = result
 
-            # Build the user message that was sent (command + any pasted context)
-            user_msg = transcript
-            if st.session_state.context_text.strip():
-                user_msg += f"\n\nContext:\n{st.session_state.context_text.strip()}"
-
-            # Append this turn to the running conversation history for the LLM
-            st.session_state.chat_messages.append({"role": "user",      "content": user_msg})
-            st.session_state.chat_messages.append({"role": "assistant", "content": result.get("output", "")})
-
-            # Sidebar history entry
+            # Session memory (bonus feature)
             st.session_state.history.append({
                 "transcription": transcript,
                 "intent": intent_data.get("intent", "unknown"),
                 "action": result.get("action", ""),
                 "output": result.get("output", ""),
-                "success": True,
+                "success": True,  # if we reach this line, execution succeeded
             })
 
 # ── Results ─────────────────────────────────────────────────────────────────────
@@ -214,7 +162,7 @@ if st.session_state.transcribed_text:
         else:
             st.write(result.get("output", "—"))
 
-        # Download button for any generated file
+        
         fp = result.get("file_path")
         if fp and os.path.exists(fp):
             with open(fp, "r") as f:
@@ -225,16 +173,16 @@ if st.session_state.transcribed_text:
                     mime="text/plain"
                 )
 
-# ── Session History (Sidebar) ────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### 🕐 Session History")
-    if len(st.session_state.history) == 0:
-        st.caption("No commands yet. Run the agent to see history here.")
-    else:
-        st.caption(f"{len(st.session_state.history)} command(s) this session")
+# history
+if len(st.session_state.history) > 0:
+    st.divider()
+    with st.expander(f"🕐 Session History  ({len(st.session_state.history)} commands)", expanded=False):
         for i, entry in enumerate(reversed(st.session_state.history), 1):
             status = "✅" if entry["success"] else "❌"
-            with st.container(border=True):
-                st.markdown(f"**{i}. {status} [{entry['intent'].replace('_', ' ').title()}]**")
-                st.caption(f"_{entry['transcription']}_")
-                st.caption(f"Action: {entry['action']}")
+            st.markdown(f"**{i}. {status} [{entry['intent']}]** — _{entry['transcription']}_")
+            st.caption(f"Action: {entry['action']}")
+            st.divider()
+
+
+
+#working fine till now 
