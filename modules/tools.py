@@ -6,10 +6,11 @@ MODEL = "llama3.2"      # must match the model you pulled via Ollama
 OUTPUT_DIR = "output"
 
 
-def execute_tool(intent_data: dict, transcript: str) -> dict:
+def execute_tool(intent_data: dict, transcript: str, context_text: str = "") -> dict:
     """
     Routes to the correct tool based on detected intent.
     All file operations are confined to the output/ directory.
+    context_text: optional text pasted/uploaded by the user to act on.
     Returns a dict with: action, output, file_path
     """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -20,9 +21,9 @@ def execute_tool(intent_data: dict, transcript: str) -> dict:
     elif intent == "write_code":
         return _write_code(intent_data, transcript)
     elif intent == "summarize":
-        return _summarize(transcript)
+        return _summarize(transcript, context_text)
     else:
-        return _general_chat(transcript)
+        return _general_chat(transcript, context_text)
 
 
 def _create_file(intent_data: dict) -> dict:
@@ -74,12 +75,15 @@ def _write_code(intent_data: dict, transcript: str) -> dict:
     }
 
 
-def _summarize(transcript: str) -> dict:
+def _summarize(transcript: str, context_text: str = "") -> dict:
+    # Use the pasted/uploaded text if provided; fall back to the voice transcript
+    content_to_summarize = context_text.strip() if context_text.strip() else transcript
+
     response = ollama.chat(
         model=MODEL,
         messages=[
             {"role": "system", "content": "Summarize the following text clearly and concisely."},
-            {"role": "user",   "content": transcript},
+            {"role": "user",   "content": content_to_summarize},
         ],
     )
 
@@ -96,12 +100,18 @@ def _summarize(transcript: str) -> dict:
     }
 
 
-def _general_chat(transcript: str) -> dict:
+def _general_chat(transcript: str, context_text: str = "") -> dict:
+    # If the user provided extra context text, include it with the voice command
+    if context_text.strip():
+        user_message = f"{transcript}\n\nContext:\n{context_text.strip()}"
+    else:
+        user_message = transcript
+
     response = ollama.chat(
         model=MODEL,
         messages=[
             {"role": "system", "content": "You are a helpful AI assistant. Answer concisely."},
-            {"role": "user",   "content": transcript},
+            {"role": "user",   "content": user_message},
         ],
     )
 

@@ -18,6 +18,9 @@ for key in ["file_path", "transcribed_text", "intent_data", "execution_result"]:
 if "history" not in st.session_state:
     st.session_state.history = []
 
+if "context_text" not in st.session_state:
+    st.session_state.context_text = ""
+
 
 # ── Header ──────────────────────────────────────────────────────────────────────
 st.markdown("# 🎙️ Voice AI Agent")
@@ -59,6 +62,36 @@ with col2:
             with open(fp, "wb") as f:
                 f.write(audio["bytes"])
             st.session_state.file_path = fp
+
+st.divider()
+
+# ── Context Text Input ───────────────────────────────────────────────────────────
+with st.container(border=True):
+    st.markdown("#### Text / Content Input")
+    st.caption("Paste or type text here — the agent will use this as the content to act on (e.g. summarize, answer questions about it).")
+
+    text_input_col, file_input_col = st.columns([2, 1])
+
+    with text_input_col:
+        typed_text = st.text_area(
+            "Type or paste content",
+            value=st.session_state.context_text,
+            height=120,
+            placeholder="Paste an article, code snippet, or any text you want the agent to work with...",
+            label_visibility="collapsed",
+        )
+        st.session_state.context_text = typed_text
+
+    with file_input_col:
+        text_file = st.file_uploader(
+            "Or upload a .txt file",
+            type=["txt"],
+            key="text_file_uploader",
+        )
+        if text_file:
+            file_content = text_file.read().decode("utf-8")
+            st.session_state.context_text = file_content
+            st.success(f"Loaded: {text_file.name}")
 
 st.divider()
 
@@ -107,7 +140,7 @@ else:
 
         # ── 03 Execute ─────────────────────────────────────────────────────────
         with st.spinner("Executing action..."):
-            result = execute_tool(intent_data, transcript)
+            result = execute_tool(intent_data, transcript, st.session_state.context_text)
             st.session_state.execution_result = result
 
             # Session memory (bonus feature)
@@ -173,12 +206,16 @@ if st.session_state.transcribed_text:
                     mime="text/plain"
                 )
 
-# ── Session History ──────────────────────────────────────────────────────────────
-if len(st.session_state.history) > 0:
-    st.divider()
-    with st.expander(f"🕐 Session History  ({len(st.session_state.history)} commands)", expanded=False):
+# ── Session History (Sidebar) ────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### 🕐 Session History")
+    if len(st.session_state.history) == 0:
+        st.caption("No commands yet. Run the agent to see history here.")
+    else:
+        st.caption(f"{len(st.session_state.history)} command(s) this session")
         for i, entry in enumerate(reversed(st.session_state.history), 1):
             status = "✅" if entry["success"] else "❌"
-            st.markdown(f"**{i}. {status} [{entry['intent']}]** — _{entry['transcription']}_")
-            st.caption(f"Action: {entry['action']}")
-            st.divider()
+            with st.container(border=True):
+                st.markdown(f"**{i}. {status} [{entry['intent'].replace('_', ' ').title()}]**")
+                st.caption(f"_{entry['transcription']}_")
+                st.caption(f"Action: {entry['action']}")
