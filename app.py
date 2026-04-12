@@ -21,6 +21,9 @@ if "history" not in st.session_state:
 if "context_text" not in st.session_state:
     st.session_state.context_text = ""
 
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
+
 
 # ── Header ──────────────────────────────────────────────────────────────────────
 st.markdown("# 🎙️ Voice AI Agent")
@@ -120,6 +123,8 @@ else:
         if st.button("↺  Reset", use_container_width=True):
             for key in ["file_path", "transcribed_text", "intent_data", "execution_result"]:
                 st.session_state[key] = None
+            st.session_state.history = []
+            st.session_state.chat_messages = []
             st.rerun()
 
     if run:
@@ -140,16 +145,30 @@ else:
 
         # ── 03 Execute ─────────────────────────────────────────────────────────
         with st.spinner("Executing action..."):
-            result = execute_tool(intent_data, transcript, st.session_state.context_text)
+            result = execute_tool(
+                intent_data,
+                transcript,
+                st.session_state.context_text,
+                st.session_state.chat_messages,
+            )
             st.session_state.execution_result = result
 
-            # Session memory (bonus feature)
+            # Build the user message that was sent (command + any pasted context)
+            user_msg = transcript
+            if st.session_state.context_text.strip():
+                user_msg += f"\n\nContext:\n{st.session_state.context_text.strip()}"
+
+            # Append this turn to the running conversation history for the LLM
+            st.session_state.chat_messages.append({"role": "user",      "content": user_msg})
+            st.session_state.chat_messages.append({"role": "assistant", "content": result.get("output", "")})
+
+            # Sidebar history entry
             st.session_state.history.append({
                 "transcription": transcript,
                 "intent": intent_data.get("intent", "unknown"),
                 "action": result.get("action", ""),
                 "output": result.get("output", ""),
-                "success": True,  # if we reach this line, execution succeeded
+                "success": True,
             })
 
 # ── Results ─────────────────────────────────────────────────────────────────────
