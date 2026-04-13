@@ -37,22 +37,13 @@ if "chat_messages" not in st.session_state:
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🎙️ Voice AI Agent")
-    st.divider()
+    # st.markdown("## 🎙️ Voice AI Agent")
+    # st.divider()
 
-    c1, c2 = st.columns(2)
-    c1.metric("Commands", len(st.session_state.history))
-    c2.metric("Memory turns", len(st.session_state.chat_messages) // 2)
+    # c1, c2 = st.columns(2)
+    # c1.metric("Commands", len(st.session_state.history))
+    # c2.metric("Memory turns", len(st.session_state.chat_messages) // 2)
 
-    if st.button("🗑️  Clear Session", use_container_width=True):
-        for key in ["file_path", "transcribed_text", "intent_data", "execution_result"]:
-            st.session_state[key] = None
-        st.session_state.history = []
-        st.session_state.chat_messages = []
-        st.session_state.context_text = ""
-        st.rerun()
-
-    st.divider()
     st.markdown("#### Session History")
 
     if not st.session_state.history:
@@ -74,13 +65,22 @@ with st.sidebar:
                     transcript_preview = transcript_preview[:70] + "…"
                 st.caption(f"_{transcript_preview}_")
 
+    st.divider()
+    if st.button("🗑️  Clear Session", use_container_width=True):
+        for key in ["file_path", "transcribed_text", "intent_data", "execution_result"]:
+            st.session_state[key] = None
+        st.session_state.history = []
+        st.session_state.chat_messages = []
+        st.session_state.context_text = ""
+        st.rerun()
+
 # ── Main Layout ──────────────────────────────────────────────────────────────────
 st.markdown("# 🎙️ Voice AI Agent")
 st.caption("Record or upload audio — the agent transcribes it, detects intent, and acts.")
 st.divider()
 
 # ── Input Row ────────────────────────────────────────────────────────────────────
-input_col1, input_col2, input_col3 = st.columns([1, 1, 1.2])
+input_col1, input_col2 = st.columns([1, 1])
 
 with input_col1:
     with st.container(border=True):
@@ -113,9 +113,9 @@ with input_col2:
             with open(fp, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             st.session_state.file_path = fp
-
-with input_col3:
-    with st.container(border=True):
+            
+st.divider()
+with st.container(border=True):
         st.markdown("#### 📄 Content Input *(optional)*")
         st.caption("Paste text for the agent to work on — summarize, answer questions, etc.")
 
