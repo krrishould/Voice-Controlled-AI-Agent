@@ -38,7 +38,7 @@ Audio Input (mic / upload)
         |
         v
 +-------------------------+
-|  01  TRANSCRIBE         |  Groq API  ->  whisper-large-v3
+|  01  TRANSCRIBE         |  whisper
 |  modules/stt.py         |  Converts audio bytes to a text transcript
 +----------+--------------+
            |  transcript (string)
